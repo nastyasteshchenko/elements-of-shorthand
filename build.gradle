@@ -12,6 +12,10 @@ repositories {
     mavenCentral()
 }
 
+run {
+    standardInput = System.in
+}
+
 tasks.register('createJar', Jar) {
     manifest {
         attributes 'Main-Class': 'ru.nsu.Main'
