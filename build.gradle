@@ -1,12 +1,23 @@
 plugins {
     id 'java'
+    id 'application'
 }
+
+mainClassName = 'ru.nsu.Main'
 
 group = 'ru.nsu'
 version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+}
+
+tasks.register('createJar', Jar) {
+    manifest {
+        attributes 'Main-Class': 'ru.nsu.Main'
+    }
+    archiveBaseName = 'elements-of-steganography'
+    with jar
 }
 
 dependencies {
