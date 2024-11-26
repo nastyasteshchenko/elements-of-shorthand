@@ -34,10 +34,6 @@ public class LSBReplacementAlgorithm {
     public void embedMessage(String inputImagePath, String outputImagePath, String message, String secretKey)
             throws IOException {
 
-        if (secretKey == null || secretKey.isEmpty()) {
-            throw new IllegalArgumentException("Не указан секретный ключ");
-        }
-
         BufferedImage image = ImageIO.read(new File(inputImagePath));
         byte[] messageBytes = message.getBytes();
         int totalPixels = image.getWidth() * image.getHeight();
@@ -73,7 +69,7 @@ public class LSBReplacementAlgorithm {
      * @param inputImagePath путь к изображению с внедренным сообщением
      * @return извлеченное текстовое сообщение
      * @throws IOException              если файл изображения не найден или не может быть прочитан
-     * @throws IllegalArgumentException если данные некорректны или файл поврежден
+     * @throws IllegalArgumentException если данные некорректны или файл поврежден, или введен неверный ключ
      */
     public String extractMessage(String inputImagePath, String secretKey) throws IOException {
         BufferedImage image = ImageIO.read(new File(inputImagePath));
