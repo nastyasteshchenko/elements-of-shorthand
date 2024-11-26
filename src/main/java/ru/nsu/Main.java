@@ -23,7 +23,7 @@ public class Main {
         String message;
         String key;
 
-        System.out.println("Введите данные (для выхода введите 'exit'):");
+        System.out.println("Введите данные (для выхода введите 'exit' вместо сообщения):");
 
         while (true) {
             System.out.print("> Сообщение: ");
