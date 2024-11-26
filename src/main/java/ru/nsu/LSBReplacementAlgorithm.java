@@ -46,7 +46,7 @@ public class LSBReplacementAlgorithm {
 
         int pixelIndex = 0;
 
-        // Кодируется длина сообщения в первых 32 битах
+        // Кодируется длина сообщения в 32 битах
         for (; pixelIndex < 32; pixelIndex++) {
             int bit = (messageBytes.length >> (31 - pixelIndex)) & 1;
             modifyPixel(image, pixelIndexes.get(pixelIndex), bit);
@@ -116,7 +116,7 @@ public class LSBReplacementAlgorithm {
     }
 
     /**
-     * Модифицирует младший значащий бит определенного пикселя изображения.
+     * Модифицирует младший значащий бит определенного пикселя изображения. Меняет синий спектр.
      *
      * @param image изображение, в котором изменяется бит
      * @param index индекс пикселя (по порядку)
