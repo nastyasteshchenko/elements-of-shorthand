@@ -6,8 +6,8 @@ import java.util.Scanner;
 
 public class Main {
 
-    private static final String INPUT_JPG_PATH = "./forest.png";
-    private static final String OUTPUT_JPG_PATH = "./embedded_forest.png";
+    private static final String INPUT_PNG_PATH = "./forest.png";
+    private static final String OUTPUT_PNG_PATH = "./embedded_forest.png";
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
         Test.test();
@@ -39,8 +39,8 @@ public class Main {
 
             System.out.println("Сообщение, которое будет внедряться: " + message);
             System.out.println("Секретный ключ: " + key);
-            lsbReplacementAlgorithm.embedMessage(INPUT_JPG_PATH, OUTPUT_JPG_PATH, message, key);
-            String extractedMessage = lsbReplacementAlgorithm.extractMessage(OUTPUT_JPG_PATH, key);
+            lsbReplacementAlgorithm.embedMessage(INPUT_PNG_PATH, OUTPUT_PNG_PATH, message, key);
+            String extractedMessage = lsbReplacementAlgorithm.extractMessage(OUTPUT_PNG_PATH, key);
             System.out.println("Извлеченное сообщение: " + extractedMessage);
         }
     }
