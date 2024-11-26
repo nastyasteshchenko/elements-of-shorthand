@@ -4,27 +4,40 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
 
-/**
- * Класс реализует алгоритм замены младшего значащего бита (LSB) для встраивания и извлечения текстовых сообщений из
- * изображений.
- * <p>
- * Данный алгоритм изменяет младший бит каждого пикселя изображения для кодирования сообщения.
- * Предполагается, что сообщение записывается в первые 32 бита (4 байта) для хранения длины сообщения,
- * а затем непосредственно записывается само сообщение.
- */
 public class LSBReplacementAlgorithm {
 
+    private final MessageDigest digest;
+
+    private LSBReplacementAlgorithm(MessageDigest digest) {
+        this.digest = digest;
+    }
+
+    public static LSBReplacementAlgorithm create() throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        return new LSBReplacementAlgorithm(digest);
+    }
+
     /**
-     * Встраивает текстовое сообщение в изображение.
+     * Встраивает текстовое сообщение в изображение на основе ключа.
      *
      * @param inputImagePath  путь к исходному изображению
      * @param outputImagePath путь для сохранения изображения с внедренным сообщением
      * @param message         текст сообщения для встраивания
+     * @param secretKey       секретный ключ для выбора пикселей
      * @throws IOException              если файл изображения не найден или не может быть прочитан
-     * @throws IllegalArgumentException если сообщение слишком длинное для данного изображения
+     * @throws IllegalArgumentException если сообщение слишком длинное для данного изображения или введен неверный ключ
      */
-    public static void embedMessage(String inputImagePath, String outputImagePath, String message) throws IOException {
+    public void embedMessage(String inputImagePath, String outputImagePath, String message, String secretKey)
+            throws IOException {
+
+        if (secretKey == null || secretKey.isEmpty()) {
+            throw new IllegalArgumentException("Не указан секретный ключ");
+        }
+
         BufferedImage image = ImageIO.read(new File(inputImagePath));
         byte[] messageBytes = message.getBytes();
         int totalPixels = image.getWidth() * image.getHeight();
@@ -33,18 +46,21 @@ public class LSBReplacementAlgorithm {
             throw new IllegalArgumentException("Сообщение слишком длинное для данного изображения");
         }
 
-        // Кодируется длина сообщения в первых 32 битах
+        List<Integer> pixelIndexes = generatePixelIndexes(image, secretKey);
+
         int pixelIndex = 0;
-        for (int i = 0; i < 32; i++) {
-            int bit = (messageBytes.length >> (31 - i)) & 1;
-            modifyPixel(image, pixelIndex++, bit);
+
+        // Кодируется длина сообщения в первых 32 битах
+        for (; pixelIndex < 32; pixelIndex++) {
+            int bit = (messageBytes.length >> (31 - pixelIndex)) & 1;
+            modifyPixel(image, pixelIndexes.get(pixelIndex), bit);
         }
 
         // Кодируется сообщение
         for (byte b : messageBytes) {
             for (int i = 0; i < 8; i++) {
                 int bit = (b >> (7 - i)) & 1;
-                modifyPixel(image, pixelIndex++, bit);
+                modifyPixel(image, pixelIndexes.get(pixelIndex++), bit);
             }
         }
 
@@ -59,14 +75,17 @@ public class LSBReplacementAlgorithm {
      * @throws IOException              если файл изображения не найден или не может быть прочитан
      * @throws IllegalArgumentException если данные некорректны или файл поврежден
      */
-    public static String extractMessage(String inputImagePath) throws IOException {
+    public String extractMessage(String inputImagePath, String secretKey) throws IOException {
         BufferedImage image = ImageIO.read(new File(inputImagePath));
         int totalPixels = image.getWidth() * image.getHeight();
 
+        List<Integer> pixelIndexes = generatePixelIndexes(image, secretKey);
+
         // Извлекается длина сообщения
+        int pixelIndex = 0;
         int messageLength = 0;
-        for (int i = 0; i < 32; i++) {
-            messageLength = (messageLength << 1) | extractBit(image, i);
+        for (; pixelIndex < 32; pixelIndex++) {
+            messageLength = (messageLength << 1) | extractBit(image, pixelIndexes.get(pixelIndex));
         }
 
         if (messageLength * 8 + 32 > totalPixels) {
@@ -78,7 +97,7 @@ public class LSBReplacementAlgorithm {
         for (int i = 0; i < messageLength; i++) {
             int b = 0;
             for (int j = 0; j < 8; j++) {
-                b = (b << 1) | extractBit(image, 32 + i * 8 + j);
+                b = (b << 1) | extractBit(image, pixelIndexes.get(pixelIndex++));
             }
             messageBytes[i] = (byte) b;
         }
@@ -93,7 +112,7 @@ public class LSBReplacementAlgorithm {
      * @param index индекс пикселя (по порядку)
      * @return младший значащий бит (0 или 1)
      */
-    private static int extractBit(BufferedImage image, int index) {
+    private int extractBit(BufferedImage image, int index) {
         int x = index % image.getWidth();
         int y = index / image.getWidth();
         int rgb = image.getRGB(x, y);
@@ -107,11 +126,42 @@ public class LSBReplacementAlgorithm {
      * @param index индекс пикселя (по порядку)
      * @param bit   новый младший значащий бит (0 или 1)
      */
-    private static void modifyPixel(BufferedImage image, int index, int bit) {
+    private void modifyPixel(BufferedImage image, int index, int bit) {
         int x = index % image.getWidth();
         int y = index / image.getWidth();
         int rgb = image.getRGB(x, y);
         int lsbModifiedRgb = (rgb & ~1) | bit;
         image.setRGB(x, y, lsbModifiedRgb);
+    }
+
+    /**
+     * Генерирует список индексов пикселей для встраивания данных.
+     * Использует значения, зависящие от секретного ключа.
+     *
+     * @param image     изображение, в котором будет происходить встраивание
+     * @param secretKey секретный ключ для генерации псевдослучайных чисел
+     * @return список индексов пикселей
+     * @throws IllegalArgumentException если введен неверный ключ
+     */
+    private List<Integer> generatePixelIndexes(BufferedImage image, String secretKey) {
+
+        if (secretKey == null || secretKey.isEmpty()) {
+            throw new IllegalArgumentException("Не указан секретный ключ");
+        }
+
+        int totalPixels = image.getWidth() * image.getHeight();
+        List<Integer> pixelIndexes = new ArrayList<>(totalPixels);
+
+        // Заполняем список индексов всех пикселей
+        for (int i = 0; i < totalPixels; i++) {
+            pixelIndexes.add(i);
+        }
+
+        // Перемешиваем индексы с использованием псевдослучайных чисел, основанных на хэше ключе
+        byte[] hash = digest.digest(secretKey.getBytes());
+        Random rand = new Random(Arrays.hashCode(hash));
+        Collections.shuffle(pixelIndexes, rand);
+
+        return pixelIndexes;
     }
 }
